@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col
-from pyspark.sql.functions import year, month
+from pyspark.sql.functions import year, month, dayofmonth, hour, weekofyear, dayofweek
 from pyspark.sql.types import TimestampType
 from pyspark.sql.functions import monotonically_increasing_id
 
@@ -90,11 +90,18 @@ def process_log_data(spark, input_data, output_data):
 
     get_timestamp = udf(lambda ts: datetime.fromtimestamp(ts/1000).isoformat())
     df_time_table = df_time_table.withColumn(
-        'timestamp', get_timestamp('ts').cast(TimestampType()))
+        'start_time', get_timestamp('ts').cast(TimestampType()))
 
     # add columns
-    df_time_table = df_time_table.withColumn('month', month('timestamp'))
-    df_time_table = df_time_table.withColumn('year', year('timestamp'))
+    df_time_table = df_time_table.withColumn('hour', hour('start_time'))
+    df_time_table = df_time_table.withColumn('day', dayofmonth('start_time'))
+    df_time_table = df_time_table.withColumn('week', weekofyear('start_time'))
+    df_time_table = df_time_table.withColumn('month', month('start_time'))
+    df_time_table = df_time_table.withColumn('year', year('start_time'))
+    df_time_table = df_time_table.withColumn(
+        'weekday', dayofweek('start_time'))
+
+    df_time_table = df_time_table.drop('ts')
 
     # write time table to parquet files partitioned by year and month
     output_time_data = output_data + 'time/time.parquet'
